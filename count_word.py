@@ -60,8 +60,6 @@ class Mecab:
         slothl_file = urllib.request.urlopen(sloth)
         soup = BeautifulSoup(slothl_file, 'html.parser')
         soup = str(soup).split()
-        mydict = ['君','先','いわば']
-        soup.extend(mydict)
         ###sloth_singleword###
         sloth_1 = 'http://svn.sourceforge.jp/svnroot/slothlib/CSharp/Version1/SlothLib/NLP/Filter/StopWord/word/OneLetterJp.txt'
         slothl_file2 = urllib.request.urlopen(sloth_1)
@@ -74,17 +72,16 @@ class Mecab:
             f.write(text_dic)
         return soup
 
-    def owakati(self, all_words):
-        wakatifile = []
+    def morphologial(self, all_words):
+        wakati_data = []
         while True:
             w = all_words[self.s:self.e]
-            wakatifile.extend(self.tagger.parse(w).split("\n"))
+            wakati_data.extend(self.tagger.parse(w).split("\n"))
             if self.e > self.stops or self.e > len(all_words):
                 break
-            else:
-                self.s = self.e
-                self.e += 200000
-        return wakatifile
+            self.s = self.e
+            self.e += 200000
+        return wakati_data
 
     def counting(self,all_words):
         dicts = {}  # 単語をカウントする辞書
@@ -96,7 +93,7 @@ class Mecab:
             mem = 1
         while True:
             word_list = []
-            wakati = self.owakati(all_words) #分かち書きアンド形態素解析
+            wakati = self.morphologial(all_words) #分かち書きアンド形態素解析
             for addlist in wakati:
                 addlist = re.split('[\t,]', addlist)  # 空白と","で分割
                 #for stopword in sloths:  #全文からストップワードを取り除く
@@ -196,8 +193,6 @@ if __name__ == '__main__':
             with open(args.out, "w") as f:
                 text = json.dumps(c,ensure_ascii=False, indent=2 ) #Falseで文字化け解消
                 f.write(text)
-                #for key,value in c.items():
-                #    f.write(f'{key} {value}\n')
     s = input("検索ワードorPlot(1)：")
     if s == "1":
         mecab.plot(c)

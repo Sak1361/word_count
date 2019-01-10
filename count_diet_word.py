@@ -78,17 +78,16 @@ class Mecab:
             f.write(text_dic)
         return soup
         
-    def owakati(self, all_words):
-        wakatifile = []
+    def morphological(self, all_words):
+        wakati_data = []
         while True:
             w = all_words[self.s:self.e]
-            wakatifile.extend(self.tagger.parse(w).split("\n"))
+            wakati_data.extend(self.tagger.parse(w).split("\n"))
             if self.e > self.stops or self.e > len(all_words):
                 break
-            else:
-                self.s = self.e
-                self.e += 200000
-        return wakatifile
+            self.s = self.e
+            self.e += 200000
+        return wakati_data
 
     def counting(self,all_words):
         dicts = {}  # 単語をカウントする辞書
@@ -100,7 +99,7 @@ class Mecab:
             mem = 1
         while True:
             word_list = []
-            wakati = self.owakati(all_words) #分かち書きアンド形態素解析
+            wakati = self.morphological(all_words) #分かち書きアンド形態素解析
             for addlist in wakati:
                 addlist = re.split('[\t,]', addlist)  # 空白と","で分割
                 #for stopword in sloths:  #全文からストップワードを取り除く
