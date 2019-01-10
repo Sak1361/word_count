@@ -176,7 +176,7 @@ class Mecab:
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('input', type=str)  #inputファイルを指定
+    parser.add_argument('--input', '-i', type=str)  #inputファイルを指定
     parser.add_argument('--out', '-o' , type=str)  #結果の出力
     parser.add_argument('--search', '-s' , type=str)  #結果ファイルから検索とか
     args = parser.parse_args()
