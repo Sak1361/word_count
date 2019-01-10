@@ -106,9 +106,8 @@ class Mecab:
                     pass
                 elif addlist[1] == '名詞':  #名詞のみカウント
                     #elif addlist[1] == '名詞' and addlist[2] == '一般' or addlist[1] == '動詞' and addlist[2] == '自立' or addlist[1] == '形容詞' and addlist[2] == '自立' or addlist[1] == '副詞' and addlist[2] == '一般':
-                    if addlist[1] == '名詞' and addlist[2] == '一般' or addlist[1] == '名詞' and addlist[2] == '固有名詞' :#and not addlist[3] == '人名':
+                    if True:#addlist[1] == '名詞' and addlist[2] == '一般' or addlist[1] == '名詞' and addlist[2] == '固有名詞' :#and not addlist[3] == '人名':
                         #print(addlist)  #6番目に未然形とか連用タ接続
-                        #del addlist[:7] #発言の単語ではなくその意味だけに丸める
                         for stopword in sloths:  # ストップワードを取り除く カウントするとこだけ処理にして処理時間削減
                             if stopword == addlist[0]:
                                 addlist = []
@@ -170,7 +169,7 @@ class Mecab:
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--input', '-i', type=str)  #inputファイルを指定
+    parser.add_argument('input', type=str)  #inputファイルを指定
     parser.add_argument('--out', '-o' , type=str)  #結果の出力
     parser.add_argument('--search', '-s' , type=str)  #結果ファイルから検索とか
     args = parser.parse_args()
