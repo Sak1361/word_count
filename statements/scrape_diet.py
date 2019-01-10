@@ -1,9 +1,4 @@
-import urllib
-import untangle
-import urllib.parse
-from bs4 import BeautifulSoup
-import os
-import sys
+import urllib, untangle, urllib.parse, os, sys
 
 def scrape(path):
     start = '1'
@@ -20,19 +15,17 @@ def scrape(path):
             with open(path,'w') as f:
                 f.write("")
     while True:
-        #keyword = '麻生太郎'
-        startdate = '2009-01-01'
+        keyword = '麻生太郎'
+        startdate = '2018-01-01'
         #enddate = '1998-12-31'
         maxreco = '100'
-        #meeting = '本会議'
-        search = '公職選挙法の改正'
-        #search = '解任決議 反対の立場から'
-        #urllib.parse.quoteが日本語をコーディングしてくれる
+        meeting = '本会議'
+        search = '佐川'
         url = 'http://kokkai.ndl.go.jp/api/1.0/speech?'+urllib.parse.quote('startRecord=' + start
                                                                            + '&maximumRecords=' + maxreco
-                                                                           #+ '&speaker=' + keyword
+                                                                           + '&speaker=' + keyword
                                                                            + '&any=' + search
-                                                                           #+ '&nameOfMeeting=' + meeting)
+                                                                           + '&nameOfMeeting=' + meeting
                                                                            + '&from=' + startdate)
                                                                            #+ '&until=' + enddate)
         obj = untangle.parse(url)
@@ -49,19 +42,16 @@ def scrape(path):
                 Reco += speechreco.speech.cdata
         Reco += '\n'
 
-        if not i%300:   #300件超えるならここでカキコ
+        if not i%500:   #500件超えるならここでカキコ
             with open(path, 'a') as f:
                 f.write(Reco)
             Reco = ""
         try:    #最後にエラーで終わるからここでにゃーん
             start = obj.data.nextRecordPosition.cdata
         except AttributeError:
-            print("にゃーんえらー")
+            print("おわり")
             break
         i += 100
-        if i > int(art):
-            print("件数到達")
-            break
         print("{0}件中{1}件目".format(art,i))
     return Reco
         

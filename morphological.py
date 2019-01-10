@@ -52,7 +52,7 @@ class Mecab:
         end_time = time.time() - start_time
         print("無駄処理時間",end_time)
         return l
-
+        
     def sloth_words(self):    #slothwordのlist化
         if os.path.exists("sloth_words.txt"):
             text = ""
@@ -64,21 +64,16 @@ class Mecab:
         ###sloth_words###
         sloth = 'http://svn.sourceforge.jp/svnroot/slothlib/CSharp/Version1/SlothLib/NLP/Filter/StopWord/word/Japanese.txt'
         slothl_file = urllib.request.urlopen(sloth)
-        soup = BeautifulSoup(slothl_file, 'lxml')
-        soup = str(soup).split()  # soupは文字列じゃないので注意
-        soup.pop(0) #htmlタグを殲滅せよ
-        soup.pop()
+        soup = BeautifulSoup(slothl_file, 'html.parser')
+        soup = str(soup).split()
         mydict = ['君','先','いわば']
         soup.extend(mydict)
         ###sloth_singleword###
         sloth_1 = 'http://svn.sourceforge.jp/svnroot/slothlib/CSharp/Version1/SlothLib/NLP/Filter/StopWord/word/OneLetterJp.txt'
         slothl_file2 = urllib.request.urlopen(sloth_1)
-        soup2 = BeautifulSoup(slothl_file2, 'lxml')
-        soup2 = str(soup2).split()  # soupは文字列じゃないので注意
-        soup2.pop(0)
-        soup2.pop()
+        soup2 = BeautifulSoup(slothl_file2, 'html.parser')
+        soup2 = str(soup2).split()
         soup.extend(soup2)  #1つにまとめる
-        
         ###毎回呼ぶの面倒だからファイル作る
         with open("sloth_words.txt","w") as f:
             text_dic = json.dumps(soup,ensure_ascii=False, indent=2 )
