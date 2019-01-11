@@ -188,28 +188,33 @@ if __name__ == '__main__':
         with open(args.search,'r') as f:
             for l in f:
                 text += l
-        c = json.loads(text,encoding='utf-8')
+        count_dic = json.loads(text,encoding='utf-8')
+        delword = input("削除したい単語をスペース区切りで(skip:0)：")
+        if delword == '0':
+            pass
+        else:
+            delword = delword.split('  ')
+            for word in delword:
+                del count_dic[word]
     else:
         words = mecab.re_def(args.input)
         stime = time.time()
-        c = mecab.counting(words)
+        count_dic = mecab.counting(words)
         etime = time.time() - stime
         print("解析処理時間",etime)
-        if args.out:
-            with open(args.out, "w") as f:
-                text = json.dumps(c,ensure_ascii=False, indent=2 ) #Falseで文字化け解消
-                f.write(text)
-                #for key,value in c.items():
-                #    f.write(f'{key} {value}\n')
+    if args.out:
+        with open(args.out, "w") as f:
+            text = json.dumps(count_dic,ensure_ascii=False, indent=2 ) #Falseで文字化け解消
+            f.write(text)
     s = input("検索ワードorPlot(1)：")
     if s == "1":
-        mecab.plot(c)
+        mecab.plot(count_dic)
     else:
-        s_word,count = mecab.Search(c,s)
+        s_word,count = mecab.Search(count_dic,s)
         print(count)
         while True:
             print(s_word)
             s = input("検索ワード or end(push 0)：")
-            s_word = mecab.Search(c,s)
+            s_word = mecab.Search(count_dic,s)
             if s == "0":
                 break
