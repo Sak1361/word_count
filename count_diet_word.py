@@ -64,14 +64,14 @@ class Mecab:
         slothl_file = urllib.request.urlopen(sloth)
         soup = BeautifulSoup(slothl_file, 'html.parser')
         soup = str(soup).split()
-        mydict = ['君','先','いわば']
-        soup.extend(mydict)
         ###sloth_singleword###
-        sloth_1 = 'http://svn.sourceforge.jp/svnroot/slothlib/CSharp/Version1/SlothLib/NLP/Filter/StopWord/word/OneLetterJp.txt'
-        slothl_file2 = urllib.request.urlopen(sloth_1)
+        sloth_2 = 'http://svn.sourceforge.jp/svnroot/slothlib/CSharp/Version1/SlothLib/NLP/Filter/StopWord/word/OneLetterJp.txt'
+        slothl_file2 = urllib.request.urlopen(sloth_2)
         soup2 = BeautifulSoup(slothl_file2, 'html.parser')
         soup2 = str(soup2).split()
         soup.extend(soup2)  #1つにまとめる
+        mydict = ['君','先','答弁','お尋ね']    #その他除外したいワード
+        soup.extend(mydict)
         ###毎回呼ぶの面倒だからファイル作る
         with open("sloth_words.txt","w") as f:
             text_dic = json.dumps(soup,ensure_ascii=False, indent=2 )
@@ -102,25 +102,14 @@ class Mecab:
             wakati = self.morphological(all_words) #分かち書きアンド形態素解析
             for addlist in wakati:
                 addlist = re.split('[\t,]', addlist)  # 空白と","で分割
-                #for stopword in sloths:  #全文からストップワードを取り除く
-                #    if stopword == addlist[0]:
-                #        addlist = []
-                #        break
-                #    while stopword in addlist[0]:
-                #        del addlist[0]
                 if addlist == [] or addlist[0] == 'EOS' or addlist[0] == '' or addlist[0] == 'ー' or addlist[0] == '*':
                     pass
                 elif addlist[1] == '名詞':  #名詞のみカウント
-                    #elif addlist[1] == '名詞' and addlist[2] == '一般' or addlist[1] == '動詞' and addlist[2] == '自立' or addlist[1] == '形容詞' and addlist[2] == '自立' or addlist[1] == '副詞' and addlist[2] == '一般':
-                    if addlist[1] == '名詞' and addlist[2] == '一般' or addlist[1] == '名詞' and addlist[2] == '固有名詞' :#and not addlist[3] == '人名':
+                    if addlist[2] == '一般' or addlist[2] == '固有名詞' :#and not addlist[3] == '人名':
+                    #if not addlist[2] == '数':
                         #print(addlist)  #6番目に未然形とか連用タ接続
                         #del addlist[:7] #発言の単語ではなくその意味だけに丸める
-                        for stopword in sloths:  # ストップワードを取り除く カウントするとこだけ処理にして処理時間削減
-                            if stopword == addlist[0]:
-                                addlist = []
-                                break
-                        if addlist:
-                            word_list.append(addlist)  #listごとに区切るのでappendで。extendだとつながる
+                        word_list.append(addlist)  #listごとに区切るのでappendで。extendだとつながる
                 else:
                     pass
             for count in word_list:
@@ -141,6 +130,9 @@ class Mecab:
                     self.e += 200000
             else:
                 break
+        for key in list(dicts): #ストップワード除去
+            if key in sloths:
+                del dicts[key]
         return dicts
 
     def plot(self,countedwords):

@@ -15,9 +15,9 @@ def scrape(path):
             with open(path,'w') as f:
                 f.write("")
     while True:
-        keyword = '麻生太郎'
-        startdate = '2018-01-01'
-        #enddate = '1998-12-31'
+        keyword = '安倍晋三'
+        startdate = '2012-12-26'
+        enddate = '2013-12-31'
         maxreco = '100'
         #meeting = '本会議'
         #search = '佐川'
@@ -26,8 +26,8 @@ def scrape(path):
                                                                            + '&speaker=' + keyword
                                                                            #+ '&any=' + search
                                                                            #+ '&nameOfMeeting=' + meeting
-                                                                           + '&from=' + startdate)
-                                                                           #+ '&until=' + enddate)
+                                                                           + '&from=' + startdate
+                                                                           + '&until=' + enddate)
         obj = untangle.parse(url)
         art = obj.data.numberOfRecords.cdata
         for record in obj.data.records.record:

@@ -23,7 +23,7 @@ class Mecab:
             l = ""
             re_half = re.compile(r'[!-~]')  # 半角記号,数字,英字
             re_full = re.compile(r'[︰-＠]')  # 全角記号
-            re_full2 = re.compile(r'[、・’〜：＜＞＿｜「」｛｝【】『』〈〉“”○〔〕…――――◇]')  # 全角で取り除けなかったやつ
+            re_full2 = re.compile(r'[、・’〜：＜＞＿｜「」｛｝【】『』〈〉“”◯○〔〕…――――◇]')  # 全角で取り除けなかったやつ
             re_comma = re.compile(r'[。]')  # 読点のみ
             re_url = re.compile(r'https?://[\w/:%#\$&\?\(\)~\.=\+\-…]+')
             re_tag = re.compile(r"<[^>]*?>")    #HTMLタグ
@@ -96,24 +96,12 @@ class Mecab:
             wakati = self.morphologial(all_words) #分かち書きアンド形態素解析
             for addlist in wakati:
                 addlist = re.split('[\t,]', addlist)  # 空白と","で分割
-                #for stopword in sloths:  #全文からストップワードを取り除く
-                #    if stopword == addlist[0]:
-                #        addlist = []
-                #        break
-                #    while stopword in addlist[0]:
-                #        del addlist[0]
                 if addlist == [] or addlist[0] == 'EOS' or addlist[0] == '' or addlist[0] == 'ー' or addlist[0] == '*':
                     pass
                 elif addlist[1] == '名詞':  #名詞のみカウント
-                    #elif addlist[1] == '名詞' and addlist[2] == '一般' or addlist[1] == '動詞' and addlist[2] == '自立' or addlist[1] == '形容詞' and addlist[2] == '自立' or addlist[1] == '副詞' and addlist[2] == '一般':
-                    if True:#addlist[1] == '名詞' and addlist[2] == '一般' or addlist[1] == '名詞' and addlist[2] == '固有名詞' :#and not addlist[3] == '人名':
+                    if addlist[2] == '一般' or addlist[2] == '固有名詞' :#and not addlist[3] == '人名':
                         #print(addlist)  #6番目に未然形とか連用タ接続
-                        for stopword in sloths:  # ストップワードを取り除く カウントするとこだけ処理にして処理時間削減
-                            if stopword == addlist[0]:
-                                addlist = []
-                                break
-                        if addlist:
-                            word_list.append(addlist)  #listごとに区切るのでappendで。extendだとつながる
+                        word_list.append(addlist)  #listごとに区切るのでappendで。extendだとつながる
                 else:
                     pass
             for count in word_list:
@@ -134,6 +122,9 @@ class Mecab:
                     self.e += 200000
             else:
                 break
+        for key in list(dicts): #ストップワード除去
+            if key in sloths:
+                del dicts[key]
         return dicts
 
     def plot(self,countedwords):
