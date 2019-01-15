@@ -79,13 +79,6 @@ def counting(all_words):
             notMatch += 1
     return score/(setcount+notMatch), setcount, notMatch
 
-def names():
-    with open("water_agrees",'r')as f:
-        agrees = f.read().split('\n')
-    with open("water_disagrees",'r')as f:
-        disagrees = f.read().split('\n')
-    return agrees,disagrees
-
 def plot(dicts,agrees,disagrees):
     res_dicts = {}
     for key, value in sorted(res_dict.items(), key=lambda x: x[1]): #スコアを昇順に
@@ -100,9 +93,13 @@ def plot(dicts,agrees,disagrees):
         i += 1
     plt.figure(figsize=(15, 5)) #これでラベルがかぶらないくらい大きく
     plt.title('ネガポジ')
-    for j in range(len(dicts)):
-        plt.bar(j,score[j], align='center')
-
+    for j,key in zip(range(len(dicts)),dicts.keys()):
+        if key in disagrees:
+            plt.bar(j,score[j], align='center',color='blue')
+        elif key in agrees:
+            plt.bar(j,score[j], align='center',color='red')
+        else:
+            plt.bar(j,score[j], align='center',color='green')
     plt.xticks(range(len(dicts)), list(dicts.keys()),rotation=90)
     plt.tick_params(width=2, length=10) #ラベル大きさ 
     plt.tight_layout()  #整える
@@ -112,7 +109,14 @@ if __name__ == '__main__':
     input_f = sys.argv[1]
     out_f = sys.argv[2]
     res_dict = {}
+    agrees,disagrees = [],[]
     for name,words in re_def(input_f):
+        if "修正案に賛成" in words: #修正案に賛成＝＝現改正案に反対
+            disagrees.append(name)
+        elif "反対の" in words: #反対派
+            disagrees.append(name)
+        elif "賛成の" in words: #賛成派
+            agrees.append(name)
         score, hits, nohit = counting(words)
         if name in res_dict.keys():
             val = (res_dict[name][0] + score) / 2
@@ -133,6 +137,5 @@ if __name__ == '__main__':
             lines += '\n'
     with open(out_f,'w')as f:
         f.write(lines)
-    ag,disag = names()
-    plot(res_dict,ag,disag)
-    #print("score平均：{0}、ヒット数：{1}、ヒット率：{2}％".format( round(score,4) ,hits ,round( hits/(hits + nohit)*100,4)))
+
+    plot(res_dict,set(agrees),set(disagrees))   #plot

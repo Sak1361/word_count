@@ -15,19 +15,19 @@ def scrape(path):
             with open(path,'w') as f:
                 f.write("")
     while True:
-        keyword = '安倍晋三'
-        startdate = '2012-12-26'
-        enddate = '2013-12-31'
+        #keyword = '安倍晋三'
+        startdate = '2017-01-01'
+        #enddate = '2013-12-31'
         maxreco = '100'
         #meeting = '本会議'
-        #search = '佐川'
+        search = '不信任決議'
         url = 'http://kokkai.ndl.go.jp/api/1.0/speech?'+urllib.parse.quote('startRecord=' + start
                                                                            + '&maximumRecords=' + maxreco
-                                                                           + '&speaker=' + keyword
-                                                                           #+ '&any=' + search
+                                                                           #+ '&speaker=' + keyword
+                                                                           + '&any=' + search
                                                                            #+ '&nameOfMeeting=' + meeting
-                                                                           + '&from=' + startdate
-                                                                           + '&until=' + enddate)
+                                                                           + '&from=' + startdate)
+                                                                           #+ '&until=' + enddate)
         obj = untangle.parse(url)
         art = obj.data.numberOfRecords.cdata
         for record in obj.data.records.record:

@@ -19,7 +19,7 @@ def scrape(path):
         #enddate = '2013-12-31' 
         maxreco = '100'
         #meeting = '本会議'
-        search = '水道法 賛成の立場'
+        search = '水道法の一部を改正する法律 反対の'
         url = 'http://kokkai.ndl.go.jp/api/1.0/speech?'+urllib.parse.quote('startRecord=' + start
                                                                            + '&maximumRecords=' + maxreco
                                                                            #+ '&speaker=' + keyword
@@ -32,6 +32,8 @@ def scrape(path):
         for record in obj.data.records.record:
             name = record.recordData.speechRecord.speaker.cdata
             if name == '' or name in chairs:    #発言者なしor議長の場合はパス
+                pass
+            elif name in Reco:
                 pass
             else:
                 Reco += name
