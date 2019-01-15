@@ -1,10 +1,5 @@
-import MeCab
-import re
-import urllib.request
-import codecs
-import sys
-import os
-import json
+import MeCab, re, codecs, sys, os, json, urllib.request
+import matplotlib.pyplot as plt
 
 def re_def(filepass):
     nameData = ""
@@ -27,9 +22,8 @@ def re_def(filepass):
                     l = ""
                 sep = re.search(pattern,line)
                 nameData = sep.group(1)
-                if not nameData:
-                    print(line)
                 nameData = nameData.replace("君","")
+                nameData = nameData.replace("○","")
                 line = line.replace(sep.group(1),"")
                 i = 1
             line = re_half.sub("", line)
@@ -40,7 +34,6 @@ def re_def(filepass):
             line = re_space.sub("", line)
             line = re_full2.sub(" ", line)
             l += line
-
 
 def Match():
     if os.path.exists("pn_ja.txt"):
@@ -86,6 +79,35 @@ def counting(all_words):
             notMatch += 1
     return score/(setcount+notMatch), setcount, notMatch
 
+def names():
+    with open("water_agrees",'r')as f:
+        agrees = f.read().split('\n')
+    with open("water_disagrees",'r')as f:
+        disagrees = f.read().split('\n')
+    return agrees,disagrees
+
+def plot(dicts,agrees,disagrees):
+    res_dicts = {}
+    for key, value in sorted(res_dict.items(), key=lambda x: x[1]): #スコアを昇順に
+        res_dicts.update({key:value})
+    dicts_value = list(res_dicts.values())  #valueが複数なのでリスト化
+    score,hitsum,hitratio = [],[],[]
+    i = 0
+    while i < len(dicts_value):
+        score.append(dicts_value[i][0])
+        hitsum.append(dicts_value[i][1])
+        hitratio.append(dicts_value[i][2])
+        i += 1
+    plt.figure(figsize=(15, 5)) #これでラベルがかぶらないくらい大きく
+    plt.title('ネガポジ')
+    for j in range(len(dicts)):
+        plt.bar(j,score[j], align='center')
+
+    plt.xticks(range(len(dicts)), list(dicts.keys()),rotation=90)
+    plt.tick_params(width=2, length=10) #ラベル大きさ 
+    plt.tight_layout()  #整える
+    plt.show()
+
 if __name__ == '__main__':
     input_f = sys.argv[1]
     out_f = sys.argv[2]
@@ -96,7 +118,7 @@ if __name__ == '__main__':
             val = (res_dict[name][0] + score) / 2
             score = (res_dict[name][2] + (hits/(hits + nohit)*100) ) / 2
             word = res_dict[name][1] + hits + nohit
-            score =[ val , word , score ]
+            score =[ val , word , score ]   #valueには（スコア、ヒット数、ヒット率）
             res_dict.update({name:score})
         else:
             score = [score, hits+nohit ,hits/(hits + nohit)*100]
@@ -104,9 +126,13 @@ if __name__ == '__main__':
     lines = ""
     for key, value in sorted(res_dict.items(), key=lambda x: x[1]): #スコアを昇順に
     #for key,value in res_dict.items():
-        lines += "{0}：{1}：ヒット数：{2}：ヒット率：{3}".format(key,round(value[0],4),value[1],round(value[2],2))
-        lines += '\n'
+        if value[1] < 100:
+            del res_dict[key]
+        else:
+            lines += "{0}：{1}：ヒット数：{2}：ヒット率：{3}".format(key,round(value[0],4),value[1],round(value[2],2))
+            lines += '\n'
     with open(out_f,'w')as f:
         f.write(lines)
-        
+    ag,disag = names()
+    plot(res_dict,ag,disag)
     #print("score平均：{0}、ヒット数：{1}、ヒット率：{2}％".format( round(score,4) ,hits ,round( hits/(hits + nohit)*100,4)))
