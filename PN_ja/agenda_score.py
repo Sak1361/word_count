@@ -34,7 +34,8 @@ def re_def(filepass):
             line = re_space.sub("", line)
             line = re_full2.sub(" ", line)
             l += line
-
+        yield nameData,l
+        
 def match_score():
     if os.path.exists("pn_ja.txt"):
         text = ""

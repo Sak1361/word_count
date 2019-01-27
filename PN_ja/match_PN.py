@@ -35,7 +35,7 @@ def re_def(filepass):
             line = re_space.sub("", line)
             line = re_full2.sub(" ", line)
             l += line
-        yield l
+        yield nameData,l
 
 def match_wago():
     if os.path.exists("pn_wago.csv"):
@@ -214,7 +214,7 @@ if __name__ == '__main__':
         if value[1] < 100:
             del res_dict[key]
         else:
-            lines += "{0}：{1}：ヒット数：{2}：ヒット率：{3}".format(key,value[0],value[1],round(value[2],2))
+            lines += "{0}：{1}：ヒット数：{2}：総数：{3}".format(key,value[0],value[1],round(value[2],2))
             lines += '\n'
     with open(out_f,'w')as f:
         f.write(lines)
