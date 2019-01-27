@@ -4,7 +4,6 @@ def scrape(path):
     start = '1'
     i = 0
     Reco = ""
-    day = ""
     chairs = ["大島理森","赤松広隆","伊達忠一","郡司彰","山崎正昭","輿石東","川端達夫","金子原二郎","向大野新治","冨岡勉","石田昌宏"]    #議長リスト
     if os.path.exists(path):
         a = int(input("ファイルあるけど上書きする？:yes(0) or no(1)："))
@@ -20,7 +19,7 @@ def scrape(path):
         #enddate = '2013-12-31'
         maxreco = '100'
         #meeting = '本会議'
-        search = '漁業法 改正'
+        search = '水道法 改正'
         url = 'http://kokkai.ndl.go.jp/api/1.0/speech?'+urllib.parse.quote('startRecord=' + start
                                                                            + '&maximumRecords=' + maxreco
                                                                            #+ '&speaker=' + keyword
@@ -35,12 +34,7 @@ def scrape(path):
             if name == '' or name in chairs:    #発言者なしor議長の場合はパス
                 pass
             else:
-                speechreco = record.recordData.speechRecord
-                if not day == speechreco.date.cdata:
-                    Reco += speechreco.date.cdata + "\n"
-                day = speechreco.date.cdata
-                Reco += speechreco.speech.cdata
-        Reco += '\n'
+                Reco += name + '\n'
 
         if not i%500:   #500件超えるならここでカキコ
             with open(path, 'a') as f:

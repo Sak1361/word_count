@@ -35,10 +35,10 @@ def re_def(filepass):
             line = re_full2.sub(" ", line)
             l += line
 
-def Match():
+def match_score():
     if os.path.exists("pn_ja.txt"):
         text = ""
-        with open("pn_ja.txt",'r') as f:
+        with open("pn_score.txt",'r') as f:
             for l in f:
                 text += l
         ja_dic = json.loads(text,encoding='utf-8')
@@ -52,14 +52,14 @@ def Match():
             ja_dic.update([(str(sep[0]),float(sep[3]))])
             html = res.readline().decode("shift_jis",'ignore').rstrip('\r\n')
     ###毎回呼ぶの面倒だからファイル作る
-    with open("pn_ja.txt","w") as f:
+    with open("pn_score.txt","w") as f:
         text_dic = json.dumps(ja_dic,ensure_ascii=False, indent=2 )
         f.write(text_dic)
     return ja_dic
-            
+
 def counting(all_words):
     #print("総文字数:{0}".format(len(all_words)))
-    ja_dict = Match()  #Matchぱたーん
+    ja_dict = match_score()  #Matchぱたーん
     tagger = MeCab.Tagger('-Owakati -d /usr/local/lib/mecab/dic/mecab-ipadic-neologd')
     meetings = "" 
     setcount = 0
@@ -68,7 +68,6 @@ def counting(all_words):
     all_words = re.split("[ \n]",all_words)
     for line in all_words:
         meetings += line + '\n'
-
     wakati = tagger.parse(meetings)#.split("\n")
     wakati = re.split('[ ,\n]', wakati)
     for Word in wakati:
@@ -110,6 +109,7 @@ if __name__ == '__main__':
     out_f = sys.argv[2]
     res_dict = {}
     agrees,disagrees = [],[]
+    c = 1
     for name,words in re_def(input_f):
         if "修正案に賛成" in words: #修正案に賛成＝＝現改正案に反対
             disagrees.append(name)
@@ -120,13 +120,16 @@ if __name__ == '__main__':
         score, hits, nohit = counting(words)
         if name in res_dict.keys():
             val = (res_dict[name][0] + score) / 2
-            score = (res_dict[name][2] + (hits/(hits + nohit)*100) ) / 2
-            word = res_dict[name][1] + hits + nohit
+            score = (res_dict[name][2] + (hits/(hits + nohit))*100 ) / 2
+            word = res_dict[name][1] + hits
             score =[ val , word , score ]   #valueには（スコア、ヒット数、ヒット率）
             res_dict.update({name:score})
         else:
-            score = [score, hits+nohit ,hits/(hits + nohit)*100]
+            score = [score, hits ,(hits/(hits + nohit))*100]
             res_dict.update({name:score})
+        if not c%10:
+            print(c,"行終了")
+        c += 1
     lines = ""
     for key, value in sorted(res_dict.items(), key=lambda x: x[1]): #スコアを昇順に
     #for key,value in res_dict.items():
