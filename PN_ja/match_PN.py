@@ -1,4 +1,4 @@
-import MeCab, re, codecs, sys, os, json, urllib.request
+import MeCab, re, codecs, sys, os, json, urllib.request, mojimoji
 import matplotlib.pyplot as plt
 from bs4 import BeautifulSoup
 
@@ -13,9 +13,12 @@ def re_def(filepass):
         re_tag = re.compile(r"<[^>]*?>")    #HTMLタグ
         re_n = re.compile(r'\n')  # 改行文字
         re_space = re.compile(r'[\s+]')  #１以上の空白文字
+        re_num = re.compile(r"[0-9]")
         pattern = "(.*)　(.*)"  #全角スペースで分ける
         i = 0
         for line in f:
+            if re_num.match(line):  #半角数字は全角数字にする
+                line = mojimoji.han_to_zen(line, ascii=False)
             #if '○' in line:
             if line.find('○',0,10) == 0:
                 if i:
@@ -74,12 +77,13 @@ def match_noun():
             pn_noun = f.read().split('\n')
         return pn_noun
     tagger = MeCab.Tagger('-Owakati -d /usr/local/lib/mecab/dic/mecab-ipadic-neologd')
+    tagger.parse('')
     ###名詞###
     pn_path = 'http://www.cl.ecei.tohoku.ac.jp/resources/sent_lex/pn.csv.m3.120408.trim'
     pn_file = urllib.request.urlopen(pn_path)
     pn_noun = BeautifulSoup(pn_file,'html.parser')
     pn_noun = str(pn_noun).split('\n')
-    posi_noun,nega_noun,even_noun = '','',''
+    posi_noun,nega_noun,neutral_noun = '','',''
     for noun_list in pn_noun:
         noun_list = noun_list.split('\t')
         noun_list[0] = tagger.parse(noun_list[0])   #分かち書きする
@@ -91,10 +95,10 @@ def match_noun():
         elif noun_list[1] and noun_list[1] == 'n':
             nega_noun += 'n\t' + noun_list[0] + '\n'
         elif noun_list[1] and noun_list[1] == 'e':
-            even_noun += 'e\t' + noun_list[0] + '\n'
+            neutral_noun += 'e\t' + noun_list[0] + '\n'
         elif noun_list[1] and noun_list[1] == '?p?n':   #?が混じってるのでeに入れてあげる
-            even_noun += 'e\t' + noun_list[0] + '\n'
-    pn_noun = posi_noun + nega_noun + even_noun
+            neutral_noun += 'e\t' + noun_list[0] + '\n'
+    pn_noun = posi_noun + nega_noun + neutral_noun
     #毎回呼ぶの面倒だからファイル作る
     with open("pn_noun.csv","w") as f:
         f.write(pn_noun)
@@ -104,6 +108,7 @@ def match_noun():
 def matching(all_words):
     #print("総文字数:{0}".format(len(all_words)))
     tagger = MeCab.Tagger('-Owakati -d /usr/local/lib/mecab/dic/mecab-ipadic-neologd')
+    tagger.parse('')
     pn_wago = match_wago()  #Matchぱたーん
     pn_noun = match_noun()
     meetings = "" 
@@ -156,8 +161,9 @@ def matching(all_words):
 
 def plot(dicts,agrees,disagrees):
     res_dicts = {}
-    for key, value in sorted(res_dict.items(), key=lambda x: x[1]): #スコアを昇順に
-        res_dicts.update({key:value})
+    for key, value in sorted(dicts.items(), key=lambda x: x[1]): #スコアを昇順に
+        if value[3] > 400:
+            res_dicts.update({key:value})
     dicts_value = list(res_dicts.values())  #valueが複数なのでリスト化
     score,hitsum,hitratio = [],[],[]
     i = 0
@@ -168,14 +174,15 @@ def plot(dicts,agrees,disagrees):
         i += 1
     plt.figure(figsize=(15, 5)) #これでラベルがかぶらないくらい大きく
     plt.title('ネガポジ')
-    for j,key in zip(range(len(dicts)),dicts.keys()):
+    leng = range(len(res_dicts))
+    for j,key in zip(leng,res_dicts.keys()):
         if key in disagrees:
             plt.bar(j,score[j], align='center',color='blue')
         elif key in agrees:
             plt.bar(j,score[j], align='center',color='red')
         else:
             plt.bar(j,score[j], align='center',color='green')
-    plt.xticks(range(len(dicts)), list(dicts.keys()),rotation=90)
+    plt.xticks(leng, list(res_dicts.keys()),rotation=90)
     plt.tick_params(width=2, length=10) #ラベル大きさ 
     plt.tight_layout()  #整える
     plt.show()
@@ -184,14 +191,22 @@ if __name__ == '__main__':
     input_f = sys.argv[1]
     out_f = sys.argv[2]
     res_dict = {}
-    agrees,disagrees = [],[]
+    agrees,disagrees= [],[]
     c = 1
     for name,words in re_def(input_f):
         if "修正案に賛成" in words: #修正案に賛成＝＝現改正案に反対
-            disagrees.append(name)
-        elif "反対の" in words: #反対派
-            disagrees.append(name)
-        elif "賛成の" in words: #賛成派
+            if not ("賛成の立場から" in words or "賛成討論" in words):
+                disagrees.append(name)
+            else:
+                agrees.append(name)
+        elif "反対の立場から" in words or "反対討論" in words: #反対派
+            if not ("賛成の立場から" in words or "賛成討論" in words):
+                disagrees.append(name)
+            else:
+                agrees.append(name)
+        elif "賛成の立場から" in words or "賛成討論" in words: #賛成派
+            if not ("反対の立場から" in words or "反対討論" in words):
+                agrees.append(name)
             agrees.append(name)
         p_match, n_match, e_match, sum_words = matching(words)
         hits = p_match + n_match + e_match
@@ -199,23 +214,21 @@ if __name__ == '__main__':
         if name in res_dict.keys():
             val = res_dict[name][0] + score
             matchs = res_dict[name][1] + hits
-            #hit_p = ( res_dict[name][2] + (hits/sum_words)*100) ) /2
-            hit_p = res_dict[name][2] + sum_words
-            score =[ val , matchs , hit_p ]   #（スコア、ヒット数、ヒット率）
+            hit_p = ( res_dict[name][2] + (hits/sum_words)*100 ) /2
+            #hit_p = res_dict[name][2] + sum_words
+            all_words = res_dict[name][3] + sum_words
+            score =[ val , matchs , hit_p , all_words]   #（スコア、ヒット数、ヒット率、総単語数）
             res_dict.update({name:score})
         else:
-            score = [score, hits , sum_words ]
+            score = [score, hits , (hits/sum_words)*100 , sum_words]
             res_dict.update({name:score})
         if not c%10:
             print(c,"行終了")
         c += 1
     lines = ""
     for key, value in sorted(res_dict.items(), key=lambda x: x[1]): #スコアを昇順に
-        if value[1] < 100:
-            del res_dict[key]
-        else:
-            lines += "{0}：{1}：ヒット数：{2}：総数：{3}".format(key,value[0],value[1],round(value[2],2))
-            lines += '\n'
+        lines += "{0}：{1}：ヒット数：{2}：ヒット率：{3}：単語総数：{4}".format(key,round(value[0],4),value[1],round(value[2],2),value[3])
+        lines += '\n'
     with open(out_f,'w')as f:
         f.write(lines)
 

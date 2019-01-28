@@ -138,6 +138,7 @@ class Mecab:
     def plot(self,countedwords):
         counts = {}
         total = sum(countedwords.values())
+        leng = range(len(counts))
         c = 1
         show = 20 #何件表示する？
         for k, v in sorted(countedwords.items(), key=lambda x: x[1], reverse=True):  # 辞書を降順に入れる
@@ -147,12 +148,12 @@ class Mecab:
                break
         plt.figure(figsize=(15, 5)) #これでラベルがかぶらないくらい大きく
         plt.title('頻繁に発言したワードベスト{0} 総単語数{1} 単語の種類数{2}'.format(show,total,len(countedwords)), size=16)
-        plt.bar(range(len(counts)), list(counts.values()), align='center')
-        plt.xticks(range(len(counts)), list(counts.keys()))
+        plt.bar(leng, list(counts.values()), align='center')
+        plt.xticks(leng, list(counts.keys()))
         # 棒グラフ内に数値を書く
-        for x, y in zip(range(len(counts)), counts.values()):
-            plt.text(x, y, y, ha='center', va='bottom') #出現回数
-            plt.text(x, y/2, "{0}%".format(round((y/total*100),3)),ha='center',va='bottom')  #パーセンテージ
+        for y in list(counts.values()):
+            plt.text(leng, y, y, ha='center', va='bottom') #出現回数
+            plt.text(leng, y/2, "{0}%".format(round((y/total*100),3)),ha='center',va='bottom')  #パーセンテージ
         plt.tick_params(width=2, length=10) #ラベル大きさ 
         plt.tight_layout()  #整える
         plt.show()

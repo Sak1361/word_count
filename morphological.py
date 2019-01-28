@@ -35,7 +35,7 @@ class Mecab:
             for line in f:
                 if re_num.match(line):
                     line = mojimoji.han_to_zen(line, ascii=False)
-                if '○' in line: #○からスペースまで名前なので取り除く
+                if line.find('○',0,5) == 0: #○から名前なのでここで取り除く
                     sep = re.search(pattern,line)
                     line = line.replace(sep.group(1),"")
                 line = re_half.sub("", line)

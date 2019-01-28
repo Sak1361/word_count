@@ -1,4 +1,4 @@
-import MeCab, re, codecs, sys, os, json, urllib.request
+import MeCab, re, codecs, sys, os, json, urllib.request, mojimoji
 import matplotlib.pyplot as plt
 
 def re_def(filepass):
@@ -12,10 +12,12 @@ def re_def(filepass):
         re_tag = re.compile(r"<[^>]*?>")    #HTMLタグ
         re_n = re.compile(r'\n')  # 改行文字
         re_space = re.compile(r'[\s+]')  #１以上の空白文字
+        re_num = re.compile(r"[0-9]")
         pattern = "(.*)　(.*)"  #全角スペースで分ける
         i = 0
         for line in f:
-            #if '○' in line:
+            if re_num.match(line):  #半角数字は全角数字にする
+                line = mojimoji.han_to_zen(line, ascii=False)
             if line.find('○',0,10) == 0:
                 if i:
                     yield nameData,l
@@ -35,9 +37,9 @@ def re_def(filepass):
             line = re_full2.sub(" ", line)
             l += line
         yield nameData,l
-        
+
 def match_score():
-    if os.path.exists("pn_ja.txt"):
+    if os.path.exists("pn_score.txt"):
         text = ""
         with open("pn_score.txt",'r') as f:
             for l in f:
@@ -50,7 +52,12 @@ def match_score():
         html = res.readline().decode("shift_jis",'ignore').rstrip('\r\n')
         while html:
             sep = html.split(':')
-            ja_dic.update([(str(sep[0]),float(sep[3]))])
+            key = str(sep[0])
+            nextkey = str(sep[1])
+            value = float(sep[3])
+            ja_dic.update([(key,value)])
+            if key != nextkey and nextkey not in ja_dic:
+                ja_dic.update([(nextkey,value)])
             html = res.readline().decode("shift_jis",'ignore').rstrip('\r\n')
     ###毎回呼ぶの面倒だからファイル作る
     with open("pn_score.txt","w") as f:
@@ -62,7 +69,8 @@ def counting(all_words):
     #print("総文字数:{0}".format(len(all_words)))
     ja_dict = match_score()  #Matchぱたーん
     tagger = MeCab.Tagger('-Owakati -d /usr/local/lib/mecab/dic/mecab-ipadic-neologd')
-    meetings = "" 
+    tagger.parse('')
+    meetings = ""
     setcount = 0
     notMatch = 0
     score = 0
@@ -81,8 +89,9 @@ def counting(all_words):
 
 def plot(dicts,agrees,disagrees):
     res_dicts = {}
-    for key, value in sorted(res_dict.items(), key=lambda x: x[1]): #スコアを昇順に
-        res_dicts.update({key:value})
+    for key, value in sorted(dicts.items(), key=lambda x: x[1]): #スコアを昇順に
+        if value[3] > 400 and value[0] > 20:
+            res_dicts.update({key:value})
     dicts_value = list(res_dicts.values())  #valueが複数なのでリスト化
     score,hitsum,hitratio = [],[],[]
     i = 0
@@ -93,14 +102,15 @@ def plot(dicts,agrees,disagrees):
         i += 1
     plt.figure(figsize=(15, 5)) #これでラベルがかぶらないくらい大きく
     plt.title('ネガポジ')
-    for j,key in zip(range(len(dicts)),dicts.keys()):
+    leng = range(len(res_dicts))
+    for j,key in zip(leng,res_dicts.keys()):
         if key in disagrees:
             plt.bar(j,score[j], align='center',color='blue')
         elif key in agrees:
             plt.bar(j,score[j], align='center',color='red')
         else:
             plt.bar(j,score[j], align='center',color='green')
-    plt.xticks(range(len(dicts)), list(dicts.keys()),rotation=90)
+    plt.xticks(leng, list(res_dicts.keys()),rotation=90)
     plt.tick_params(width=2, length=10) #ラベル大きさ 
     plt.tight_layout()  #整える
     plt.show()
@@ -113,32 +123,36 @@ if __name__ == '__main__':
     c = 1
     for name,words in re_def(input_f):
         if "修正案に賛成" in words: #修正案に賛成＝＝現改正案に反対
-            disagrees.append(name)
-        elif "反対の" in words: #反対派
-            disagrees.append(name)
-        elif "賛成の" in words: #賛成派
-            agrees.append(name)
+            if not ("賛成の立場から" in words or "賛成討論" in words):
+                disagrees.append(name)
+            else:
+                agrees.append(name)
+        elif "反対の立場から" in words or "反対討論" in words: #反対派
+            if not ("賛成の立場から" in words or "賛成討論" in words):
+                disagrees.append(name)
+            else:
+                agrees.append(name)
+        elif "賛成の立場から" in words or "賛成討論" in words: #賛成派
+            if not ("反対の立場から" in words or "反対討論" in words):
+                agrees.append(name)
         score, hits, nohit = counting(words)
         if name in res_dict.keys():
             val = (res_dict[name][0] + score) / 2
-            score = (res_dict[name][2] + (hits/(hits + nohit))*100 ) / 2
+            hit_p = (res_dict[name][2] + (hits/(hits + nohit))*100 ) / 2
             word = res_dict[name][1] + hits
-            score =[ val , word , score ]   #valueには（スコア、ヒット数、ヒット率）
+            all_words = res_dict[name][3] + hits + nohit
+            score =[ val , word , hit_p , all_words]   #valueには（スコア、ヒット数、ヒット率、単語総数）
             res_dict.update({name:score})
         else:
-            score = [score, hits ,(hits/(hits + nohit))*100]
+            score = [score, hits ,(hits/(hits + nohit))*100,hits+nohit]
             res_dict.update({name:score})
         if not c%10:
             print(c,"行終了")
         c += 1
     lines = ""
     for key, value in sorted(res_dict.items(), key=lambda x: x[1]): #スコアを昇順に
-    #for key,value in res_dict.items():
-        if value[1] < 100:
-            del res_dict[key]
-        else:
-            lines += "{0}：{1}：ヒット数：{2}：ヒット率：{3}".format(key,round(value[0],4),value[1],round(value[2],2))
-            lines += '\n'
+        lines += "{0}：{1}：ヒット数：{2}：ヒット率：{3}：単語総数：{4}".format(key,round(value[0],4),value[1],round(value[2],2),value[3])
+        lines += '\n'
     with open(out_f,'w')as f:
         f.write(lines)
 
