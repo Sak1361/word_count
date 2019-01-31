@@ -1,5 +1,6 @@
 import MeCab, re, codecs, sys, os, json, urllib.request, mojimoji
 import matplotlib.pyplot as plt
+import search_member
 
 def re_def(filepass):
     nameData = ""
@@ -90,7 +91,7 @@ def counting(all_words):
 def plot(dicts,agrees,disagrees):
     res_dicts = {}
     for key, value in sorted(dicts.items(), key=lambda x: x[1]): #スコアを昇順に
-        if value[3] > 400 and value[0] > 20:
+        if value[3] > 400:
             res_dicts.update({key:value})
     dicts_value = list(res_dicts.values())  #valueが複数なのでリスト化
     score,hitsum,hitratio = [],[],[]
@@ -115,9 +116,55 @@ def plot(dicts,agrees,disagrees):
     plt.tight_layout()  #整える
     plt.show()
 
+def res_load(res_file):
+    score = dict()
+    ruling = []
+    opposition = []
+    with open(res_file,'r')as f:
+        res = f.read().split('\n')
+    for mem_list in res:
+        mem_list = mem_list.split('：')
+        if mem_list[0] == '':
+            break
+        if int(mem_list[7]) < 400:
+            pass
+        else:
+            score.update({str(mem_list[0]):float(mem_list[1])})
+    for key in score.keys():
+        party = search_member.search(key)
+        if party == '自民' or party == '公明' or party == '維新':
+            ruling.append(key)  #appendじゃないと一文字づつ
+        elif party == '無属':
+            pass
+        else:
+            opposition.append(key)
+    #plot
+    res_dicts = {}
+    for key, value in sorted(score.items(), key=lambda x: x[1]): #スコアを昇順に
+            res_dicts.update({key:value})
+    plt.figure(figsize=(15, 5)) #これでラベルがかぶらないくらい大きく
+    plt.title('ネガポジ')
+    leng = range(len(res_dicts))
+    for ln,key,value in zip(leng,res_dicts.keys(),res_dicts.values()):
+        if key in ruling:
+            plt.bar(ln,value, align='center',color='blue')
+        elif key in opposition:
+            plt.bar(ln,value, align='center',color='red')
+        else:
+            plt.bar(ln,value, align='center',color='green')
+    plt.xticks(leng, list(res_dicts.keys()),rotation=90)
+    plt.tick_params(width=2, length=10) #ラベル大きさ 
+    plt.tight_layout()  #整える
+    plt.show()
+
 if __name__ == '__main__':
     input_f = sys.argv[1]
-    out_f = sys.argv[2]
+    try:
+        out_f = sys.argv[2]
+    except IndexError:
+        res_load(input_f)
+        sys.exit()
+
     res_dict = {}
     agrees,disagrees = [],[]
     c = 1

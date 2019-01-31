@@ -1,5 +1,6 @@
 import MeCab, re, codecs, sys, os, json, urllib.request, mojimoji
 import matplotlib.pyplot as plt
+import search_member #作ったプログラムをモジュールで使う
 from bs4 import BeautifulSoup
 
 def re_def(filepass):
@@ -175,23 +176,69 @@ def plot(dicts,agrees,disagrees):
     plt.figure(figsize=(15, 5)) #これでラベルがかぶらないくらい大きく
     plt.title('ネガポジ')
     leng = range(len(res_dicts))
-    for j,key in zip(leng,res_dicts.keys()):
+    for ln,key in zip(leng,res_dicts.keys()):
         if key in disagrees:
-            plt.bar(j,score[j], align='center',color='blue')
+            plt.bar(ln,score[ln], align='center',color='blue')
         elif key in agrees:
-            plt.bar(j,score[j], align='center',color='red')
+            plt.bar(ln,score[ln], align='center',color='red')
         else:
-            plt.bar(j,score[j], align='center',color='green')
+            plt.bar(ln,score[ln], align='center',color='green')
     plt.xticks(leng, list(res_dicts.keys()),rotation=90)
     plt.tick_params(width=2, length=10) #ラベル大きさ 
     plt.tight_layout()  #整える
     plt.show()
         
+def res_load(res_file):
+    score = dict()
+    ruling = []
+    opposition = []
+    with open(res_file,'r')as f:
+        res = f.read().split('\n')
+    for mem_list in res:
+        mem_list = mem_list.split('：')
+        if mem_list[0] == '':
+            break
+        if int(mem_list[7]) < 400:
+            pass
+        else:
+            score.update({str(mem_list[0]):float(mem_list[1])})
+    for key in score.keys():
+        party = search_member.search(key)
+        if party == '自民' or party == '公明' or party == '維新':
+            ruling.append(key)  #appendじゃないと一文字づつ
+        elif party == '無属':
+            pass
+        else:
+            opposition.append(key)
+    #plot
+    res_dicts = {}
+    for key, value in sorted(score.items(), key=lambda x: x[1]): #スコアを昇順に
+            res_dicts.update({key:value})
+    plt.figure(figsize=(15, 5)) #これでラベルがかぶらないくらい大きく
+    plt.title('ネガポジ')
+    leng = range(len(res_dicts))
+    for ln,key,value in zip(leng,res_dicts.keys(),res_dicts.values()):
+        if key in ruling:
+            plt.bar(ln,value, align='center',color='blue')
+        elif key in opposition:
+            plt.bar(ln,value, align='center',color='red')
+        else:
+            plt.bar(ln,value, align='center',color='green')
+    plt.xticks(leng, list(res_dicts.keys()),rotation=90)
+    plt.tick_params(width=2, length=10) #ラベル大きさ 
+    plt.tight_layout()  #整える
+    plt.show()
+
 if __name__ == '__main__':
     input_f = sys.argv[1]
-    out_f = sys.argv[2]
+    try:
+        out_f = sys.argv[2]
+    except IndexError:
+        res_load(input_f)
+        sys.exit()
+
     res_dict = {}
-    agrees,disagrees= [],[]
+    agrees,disagrees = [],[]
     c = 1
     for name,words in re_def(input_f):
         if "修正案に賛成" in words: #修正案に賛成＝＝現改正案に反対
