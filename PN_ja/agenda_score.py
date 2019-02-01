@@ -1,6 +1,6 @@
 import MeCab, re, codecs, sys, os, json, urllib.request, mojimoji
 import matplotlib.pyplot as plt
-import search_member
+import search_party
 
 def re_def(filepass):
     nameData = ""
@@ -131,7 +131,7 @@ def res_load(res_file):
         else:
             score.update({str(mem_list[0]):float(mem_list[1])})
     for key in score.keys():
-        party = search_member.search(key)
+        party = search_party.search(key)
         if party == '自民' or party == '公明' or party == '維新':
             ruling.append(key)  #appendじゃないと一文字づつ
         elif party == '無属':
@@ -175,12 +175,12 @@ if __name__ == '__main__':
             else:
                 agrees.append(name)
         elif "反対の立場から" in words or "反対討論" in words: #反対派
-            if not ("賛成の立場から" in words or "賛成討論" in words):
+            if not ("賛成の立場から" in words and "賛成討論" in words):
                 disagrees.append(name)
             else:
                 agrees.append(name)
         elif "賛成の立場から" in words or "賛成討論" in words: #賛成派
-            if not ("反対の立場から" in words or "反対討論" in words):
+            if not ("反対の立場から" in words and "反対討論" in words):
                 agrees.append(name)
         score, hits, nohit = counting(words)
         if name in res_dict.keys():
