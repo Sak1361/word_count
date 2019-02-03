@@ -257,7 +257,10 @@ if __name__ == '__main__':
             agrees.append(name)
         p_match, n_match, e_match, sum_words = matching(words)
         hits = p_match + n_match + e_match
-        score = (p_match+e_match) - (n_match+e_match)
+        try:
+            score = (p_match - n_match) / e_match   #ポジ-ネガをニュートラルで割ることでニュートラルが多いとスコアを小さく
+        except ZeroDivisionError:
+            score = p_match - n_match
         if name in res_dict.keys():
             val = res_dict[name][0] + score
             matchs = res_dict[name][1] + hits
