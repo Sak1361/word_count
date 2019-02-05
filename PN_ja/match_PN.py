@@ -163,7 +163,7 @@ def matching(all_words):
 def plot(dicts,agrees,disagrees):
     res_dicts = {}
     for key, value in sorted(dicts.items(), key=lambda x: x[1]): #スコアを昇順に
-        if value[3] > 400:
+        if value[3] > 200:
             res_dicts.update({key:value})
     dicts_value = list(res_dicts.values())  #valueが複数なのでリスト化
     score,hitsum,hitratio = [],[],[]
@@ -198,7 +198,7 @@ def res_load(res_file):
         mem_list = mem_list.split('：')
         if mem_list[0] == '':
             break
-        if int(mem_list[7]) < 400:
+        if int(mem_list[7]) < 200:
             pass
         else:
             score.update({str(mem_list[0]):float(mem_list[1])})
@@ -242,19 +242,15 @@ if __name__ == '__main__':
     c = 1
     for name,words in re_def(input_f):
         if "修正案に賛成" in words: #修正案に賛成＝＝現改正案に反対
-            if not ("賛成の立場から" in words or "賛成討論" in words):
-                disagrees.append(name)
-            else:
-                agrees.append(name)
+            disagrees.append(name)
         elif "反対の立場から" in words or "反対討論" in words: #反対派
-            if not ("賛成の立場から" in words or "賛成討論" in words):
+            if not ("賛成の立場から" in words and "賛成討論" in words):
                 disagrees.append(name)
             else:
                 agrees.append(name)
         elif "賛成の立場から" in words or "賛成討論" in words: #賛成派
-            if not ("反対の立場から" in words or "反対討論" in words):
+            if not ("反対の立場から" in words and "反対討論" in words):
                 agrees.append(name)
-            agrees.append(name)
         p_match, n_match, e_match, sum_words = matching(words)
         hits = p_match + n_match + e_match
         try:
