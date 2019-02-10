@@ -1,6 +1,6 @@
-import MeCab, re, codecs, sys, os, json, urllib.request, mojimoji
+import MeCab, re, codecs, sys, os, json, urllib.request, mojimoji,jaconv
 import matplotlib.pyplot as plt
-import search_party
+from bs4 import BeautifulSoup
 
 def re_def(filepass):
     nameData = ""
@@ -8,7 +8,7 @@ def re_def(filepass):
         l = ""
         re_half = re.compile(r'[!-~]')  # 半角記号,数字,英字
         re_full = re.compile(r'[︰-＠]')  # 全角記号
-        re_full2 = re.compile(r'[、。・’〜：＜＞＿｜「」｛｝【】『』〈〉“”○〇〔〕…――――─◇]')  # 全角で取り除けなかったやつ 
+        re_full2 = re.compile(r'[、。・’〜：＜＞＿｜「」｛｝【】『』〈〉“”○〇〔〕…――――─◇]')  #全角個別指定 
         re_url = re.compile(r'https?://[\w/:%#\$&\?\(\)~\.=\+\-…]+')
         re_tag = re.compile(r"<[^>]*?>")    #HTMLタグ
         re_n = re.compile(r'\n')  # 改行文字
@@ -41,163 +41,224 @@ def re_def(filepass):
 
 def match_score():
     if os.path.exists("pn_score.txt"):
-        text = ""
+        pn_score = ""
         with open("pn_score.txt",'r') as f:
             for l in f:
-                text += l
-        ja_dic = json.loads(text,encoding='utf-8')
-        return ja_dic
-    ja_dic = {}
+                pn_score += l
+        return pn_score
+    pn_score = ''
     url = 'http://www.lr.pi.titech.ac.jp/~takamura/pubs/pn_ja.dic'
     with urllib.request.urlopen(url) as res:
         html = res.readline().decode("shift_jis",'ignore').rstrip('\r\n')
         while html:
-            sep = html.split(':')
-            key = str(sep[0])
-            nextkey = str(sep[1])
-            value = float(sep[3])
-            ja_dic.update([(key,value)])
-            if key != nextkey and nextkey not in ja_dic:
-                ja_dic.update([(nextkey,value)])
+            pn_score += html + '\n'
             html = res.readline().decode("shift_jis",'ignore').rstrip('\r\n')
     ###毎回呼ぶの面倒だからファイル作る
     with open("pn_score.txt","w") as f:
-        text_dic = json.dumps(ja_dic,ensure_ascii=False, indent=2 )
-        f.write(text_dic)
-    return ja_dic
+        f.write(pn_score)
+    return pn_score
+
+def search_party(search_name):
+    tagger = MeCab.Tagger('-Oyomi -d /usr/local/lib/mecab/dic/mecab-ipadic-neologd')#読み仮名のみ
+    tagger.parse('')
+    re_sub = re.compile(r'[︰-＠]')  #全角記号
+    re_space = re.compile(r'[　 +]')    #全半空白
+    search_name = re_space.sub('',search_name)
+    read_name = tagger.parse(search_name)
+    read_name = jaconv.kata2hira(str(read_name)).strip('\n')    #改行が混じるからとる
+    for page in range(1,100):
+        try:
+            html = open(r"/Users/sak1361/repository/scrape_diet-member/pages/diet-member_{}.html"\
+                .format(page),'r')  #完全パスの方が良い
+        except FileNotFoundError:
+            return 0
+        soup = BeautifulSoup(html, "html.parser")
+        for res in soup.find_all(class_="ContentsData"):
+            name = res.find(class_="Name").text.replace('\u3000','')    #タブを削除
+            name = re_sub.sub(' ',name) #カッコを取り除く
+            name = name.split(' ')  #リスト化（名前、年齢、読み仮名）
+            if name[0] == search_name or name[2] == search_name or read_name == name[2]:
+                party = res.find(class_="Party").text
+                return party
 
 def counting(all_words):
-    #print("総文字数:{0}".format(len(all_words)))
-    ja_dict = match_score()  #Matchぱたーん
-    tagger = MeCab.Tagger('-Owakati -d /usr/local/lib/mecab/dic/mecab-ipadic-neologd')
+    tagger = MeCab.Tagger('-Ochasen -d /usr/local/lib/mecab/dic/mecab-ipadic-neologd')
     tagger.parse('')
     meetings = ""
-    setcount = 0
-    notMatch = 0
+    matchs = 0
     score = 0
     all_words = re.split("[ \n]",all_words)
     for line in all_words:
         meetings += line + '\n'
-    wakati = tagger.parse(meetings)#.split("\n")
-    wakati = re.split('[ ,\n]', wakati)
-    for Word in wakati:
-        if Word in ja_dict.keys():
-            score += float(ja_dict[Word])
-            setcount += 1
+    noun_words = []   #名詞
+    verb_words = []   #動詞
+    adjective_words = []  #形容詞
+    adverb_words = [] #副詞
+    count = 0
+    ja_dict = match_score().split('\n')  #Matchpattern
+    for w in ja_dict:   #品詞別に分ける
+        w = w.split(':')
+        if w[0] == '':
+            break
+        if w[2] == '動詞':
+            verb_words.append(ja_dict[count])
+        elif w[2] == '形容詞':
+            adjective_words.append(ja_dict[count])
+        elif w[2] == '副詞':
+            adverb_words.append(ja_dict[count])
         else:
-            notMatch += 1
-    return score/(setcount+notMatch), setcount, notMatch
+            noun_words.append(ja_dict[count])
+        count += 1
+    wakati = tagger.parse(meetings)
+    wakati = re.split('[ ,\n]', wakati)
+    for word in wakati:
+        word = word.split('\t') #済み,スミ,済む,動詞-自立,五段・マ行,連用形
+        try:    #長いワードだと例外が出る
+            word[1] = jaconv.kata2hira(str(word[1]))    #カナなのでひらがなに直す
+            word[3] = word[3].split('-')    #動詞-自立で、自立は必要ないから省く
+            word[3] = word[3][0]
+            if word[3] == '名詞':
+                for noun in noun_words:
+                    noun = noun.split(':')  #優れる:すぐれる:動詞:1
+                    if word[0] == noun[0] and word[1] == noun[1]:
+                        score += float( noun[3] )
+                        matchs += 1
+                        break
+            elif word[3] == '動詞':
+                for verb in verb_words:
+                    verb = verb.split(':')
+                    if word[0] == verb[0] and word[1] == verb[1]:
+                        score += float( verb[3] )
+                        matchs += 1
+                        break
+            elif word[3] == '形容詞':
+                for adj in adjective_words:
+                    adj = adj.split(':')
+                    if word[0] == adj[0] and word[1] == adj[1]:
+                        score += float( adj[3] )
+                        matchs += 1
+                        break
+            elif word[3] == '副詞':
+                for adverb in adverb_words:
+                    adverb = adverb.split(':')
+                    if word[0] == adverb[0] and word[1] == adverb[1]:
+                        score += float( adverb[3] )
+                        matchs += 1
+                        break
+        except IndexError:
+            if not word == 'EOS' or not word == '':  #空でもEOSでもない場合print
+                print(word)
+    return score/len(wakati), matchs,len(wakati) 
 
-def plot(dicts,agrees,disagrees):
-    res_dicts = {}
-    for key, value in sorted(dicts.items(), key=lambda x: x[1]): #スコアを昇順に
-        if value[3] > 200:
-            res_dicts.update({key:value})
-    dicts_value = list(res_dicts.values())  #valueが複数なのでリスト化
-    score,hitsum,hitratio = [],[],[]
-    i = 0
-    while i < len(dicts_value):
-        score.append(dicts_value[i][0])
-        hitsum.append(dicts_value[i][1])
-        hitratio.append(dicts_value[i][2])
-        i += 1
+def plot(res):
+    name = []
     plt.figure(figsize=(15, 5)) #これでラベルがかぶらないくらい大きく
     plt.title('ネガポジ')
-    leng = range(len(res_dicts))
-    for j,key in zip(leng,res_dicts.keys()):
-        if key in disagrees:
-            plt.bar(j,score[j], align='center',color='blue')
-        elif key in agrees:
-            plt.bar(j,score[j], align='center',color='red')
+    leng = range(len(res))
+    for ln,key,value in zip(leng,list(res.keys()),res.values()):
+        name.append(key[1])
+        if key[0] == '自民' or key[0] == '公明' or key[0] == '維新':
+            plt.bar(ln,value, align='center',color='red',label="与党+維新")
+        elif key[0] == '民間':
+            plt.bar(ln,value, align='center',color='gray',label="参考人等")
+        elif key[0] == '無属':
+            plt.bar(ln,value, align='center',color='green',label="無所属")
         else:
-            plt.bar(j,score[j], align='center',color='green')
-    plt.xticks(leng, list(res_dicts.keys()),rotation=90)
+            plt.bar(ln,value, align='center',color='blue',label="野党")
+    plt.xticks(leng, name ,rotation=90)
     plt.tick_params(width=2, length=10) #ラベル大きさ 
+    plt.ylim([0,-0.2])
     plt.tight_layout()  #整える
+    handles, labels = plt.gca().get_legend_handles_labels() #汎用表示
+    i =1
+    while i<len(labels):
+        if labels[i] in labels[:i]:
+            del(labels[i])
+            del(handles[i])
+        else:
+            i +=1
+    plt.legend(handles, labels)
     plt.show()
 
 def res_load(res_file):
     score = dict()
-    ruling = []
-    opposition = []
     with open(res_file,'r')as f:
         res = f.read().split('\n')
     for mem_list in res:
         mem_list = mem_list.split('：')
-        if mem_list[0] == '':
-            break
-        if int(mem_list[7]) < 200:
+        try:
+            if int(mem_list[8]) > 500:
+                party = str(mem_list[0])
+                name = str(mem_list[1])
+                value = float(mem_list[2])
+                score.update({(party,name):value})
+        except IndexError:
             pass
-        else:
-            score.update({str(mem_list[0]):float(mem_list[1])})
-    for key in score.keys():
-        party = search_party.search(key)
-        if party == '自民' or party == '公明' or party == '維新':
-            ruling.append(key)  #appendじゃないと一文字づつ
-        elif party == '無属':
+    return score
+
+def corrects(res):
+    row = []
+    swap = 0
+    for key in list(res.keys()):
+        if key[0] == '民間' or key[0] == '無属':
             pass
+        elif key[0] == '自民' or key[0] == '公明' or key[0] == '維新':
+            row.append(1)
         else:
-            opposition.append(key)
-    #plot
-    res_dicts = {}
-    for key, value in sorted(score.items(), key=lambda x: x[1]): #スコアを昇順に
-            res_dicts.update({key:value})
-    plt.figure(figsize=(15, 5)) #これでラベルがかぶらないくらい大きく
-    plt.title('ネガポジ')
-    leng = range(len(res_dicts))
-    for ln,key,value in zip(leng,res_dicts.keys(),res_dicts.values()):
-        if key in ruling:
-            plt.bar(ln,value, align='center',color='blue')
-        elif key in opposition:
-            plt.bar(ln,value, align='center',color='red')
-        else:
-            plt.bar(ln,value, align='center',color='green')
-    plt.xticks(leng, list(res_dicts.keys()),rotation=90)
-    plt.tick_params(width=2, length=10) #ラベル大きさ 
-    plt.tight_layout()  #整える
-    plt.show()
+            row.append(0)
+    for i in range(len(row)):   #バブルソート
+        for j in range(len(row)-1, i, -1):
+            if row[j] < row[j-1]:
+                row[j], row[j-1] = row[j-1], row[j]
+                swap += 1
+    validity = len(res) / (len(res) + swap) #スワップした回数を分母に足して確率を求める
+    return round(validity*100,2)
 
 if __name__ == '__main__':
     input_f = sys.argv[1]
     try:
         out_f = sys.argv[2]
     except IndexError:
-        res_load(input_f)
+        files = res_load(input_f)
+        cor = corrects(files)
+        print("正答率：",cor)
+        plot(files)
         sys.exit()
-
+    if os.path.exists(out_f):   #上書きの警告
+        select = input("orverwrite?yes(0),no(1):")
+        if not select=='0':
+            sys.exit()
     res_dict = {}
-    agrees,disagrees = [],[]
     c = 1
     for name,words in re_def(input_f):
-        if "修正案に賛成" in words: #修正案に賛成＝＝現改正案に反対
-            disagrees.append(name)
-        elif "反対の立場から" in words or "反対討論" in words: #反対派
-            if not ("賛成の立場から" in words and "賛成討論" in words):
-                disagrees.append(name)
-            else:
-                agrees.append(name)
-        elif "賛成の立場から" in words or "賛成討論" in words: #賛成派
-            if not ("反対の立場から" in words and "反対討論" in words):
-                agrees.append(name)
-        score, hits, nohit = counting(words)
+        score, hits, all_word = counting(words)
         if name in res_dict.keys():
             val = (res_dict[name][0] + score) / 2
-            hit_p = (res_dict[name][2] + (hits/(hits + nohit))*100 ) / 2
+            hit_p = (res_dict[name][2] + (hits/all_word)*100 ) / 2
             word = res_dict[name][1] + hits
-            all_words = res_dict[name][3] + hits + nohit
-            score =[ val , word , hit_p , all_words]   #valueには（スコア、ヒット数、ヒット率、単語総数）
+            all_w = res_dict[name][3] + all_word
+            score =[ val , word , hit_p , all_w]   #valueには（スコア、ヒット数、ヒット率、単語総数）
             res_dict.update({name:score})
         else:
-            score = [score, hits ,(hits/(hits + nohit))*100,hits+nohit]
+            score = [score, hits ,(hits/all_word)*100,all_word]
             res_dict.update({name:score})
-        if not c%10:
-            print(c,"行終了")
+        #if not c%10:
+        print(c,"件終了")
         c += 1
-    lines = ""
-    for key, value in sorted(res_dict.items(), key=lambda x: x[1]): #スコアを昇順に
-        lines += "{0}：{1}：ヒット数：{2}：ヒット率：{3}：単語総数：{4}".format(key,round(value[0],4),value[1],round(value[2],2),value[3])
+    reslut = {}
+    lines = ''
+    for key, value in sorted(res_dict.items(), key=lambda x: x[1]): #スコアを昇順+所属政党追加
+        party = search_party(key)
+        if party == 0:
+            party = '民間'
+        key = (party,key)
+        if value[3] > 500:  #総単語数が200以下はplotしない
+            reslut.update({key:value[0]})
+        lines += "{}：{}：{}：ヒット数：{}：ヒット率：{}：単語総数：{}"\
+            .format(key[0],key[1],round(value[0],4),value[1],round(value[2],2),value[3])
         lines += '\n'
+    cor = corrects(reslut)
+    lines += "正答率：{}%".format(cor)
     with open(out_f,'w')as f:
         f.write(lines)
-
-    plot(res_dict,set(agrees),set(disagrees))   #plot
+    plot(reslut)   #plot

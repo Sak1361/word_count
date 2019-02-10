@@ -70,7 +70,7 @@ class Mecab:
         soup2 = BeautifulSoup(slothl_file2, 'html.parser')
         soup2 = str(soup2).split()
         soup.extend(soup2)  #1つにまとめる
-        mydict = ['君','先','答弁','お尋ね']    #その他除外したいワード
+        mydict = ['君','先','答弁','お尋ね','登壇','拍手']    #その他除外したいワード
         soup.extend(mydict)
         ###毎回呼ぶの面倒だからファイル作る
         with open("sloth_words.txt","w") as f:
@@ -138,7 +138,6 @@ class Mecab:
     def plot(self,countedwords):
         counts = {}
         total = sum(countedwords.values())
-        leng = range(len(counts))
         c = 1
         show = 20 #何件表示する？
         for k, v in sorted(countedwords.items(), key=lambda x: x[1], reverse=True):  # 辞書を降順に入れる
@@ -146,14 +145,15 @@ class Mecab:
             c += 1
             if c > show:
                break
+        leng = range(len(counts))
         plt.figure(figsize=(15, 5)) #これでラベルがかぶらないくらい大きく
         plt.title('頻繁に発言したワードベスト{0} 総単語数{1} 単語の種類数{2}'.format(show,total,len(countedwords)), size=16)
         plt.bar(leng, list(counts.values()), align='center')
         plt.xticks(leng, list(counts.keys()))
         # 棒グラフ内に数値を書く
-        for y in list(counts.values()):
-            plt.text(leng, y, y, ha='center', va='bottom') #出現回数
-            plt.text(leng, y/2, "{0}%".format(round((y/total*100),3)),ha='center',va='bottom')  #パーセンテージ
+        for value,ln in zip(list(counts.values()),leng):
+            plt.text(ln, value, value, ha='center', va='bottom') #出現回数
+            plt.text(ln, value/2, "{0}%".format(round((value/total*100),3)),ha='center',va='bottom')  #パーセンテージ
         plt.tick_params(width=2, length=10) #ラベル大きさ 
         plt.tight_layout()  #整える
         plt.show()
