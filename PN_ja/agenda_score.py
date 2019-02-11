@@ -153,7 +153,7 @@ def counting(all_words):
 def plot(res):
     name = []
     plt.figure(figsize=(15, 5)) #これでラベルがかぶらないくらい大きく
-    plt.title('ネガポジ')
+    plt.title('水道法改正についての発言')
     leng = range(len(res))
     for ln,key,value in zip(leng,list(res.keys()),res.values()):
         name.append(key[1])
@@ -167,7 +167,7 @@ def plot(res):
             plt.bar(ln,value, align='center',color='blue',label="野党")
     plt.xticks(leng, name ,rotation=90)
     plt.tick_params(width=2, length=10) #ラベル大きさ 
-    plt.ylim([0,-0.2])
+    plt.ylim([0,-0.15])
     plt.tight_layout()  #整える
     handles, labels = plt.gca().get_legend_handles_labels() #汎用表示
     i =1
@@ -180,14 +180,48 @@ def plot(res):
     plt.legend(handles, labels)
     plt.show()
 
+def cal_median(res):
+    row = []
+    for value in list(res.values()):
+        row.append(value[3])    #valueには（スコア、ヒット数、ヒット率、単語総数）
+    for i in range(len(row)):
+        for j in range(len(row)-1, i, -1):
+            if row[j] < row[j-1]:
+                row[j], row[j-1] = row[j-1], row[j]         
+    median = len(row)/2
+    if type(median) == float:
+        median = (row[int(median-0.5)] + row[int(median+0.5)])/2
+    else:
+        median = row[median]
+    return median
+
 def res_load(res_file):
     score = dict()
     with open(res_file,'r')as f:
         res = f.read().split('\n')
+    def cal_median(res):
+        row = []
+        for mem_list in res:
+            mem_list = mem_list.split('：')
+            try:
+                row.append(int(mem_list[8]))
+            except IndexError:
+                pass    
+        for i in range(len(row)):
+            for j in range(len(row)-1, i, -1):
+                if row[j] < row[j-1]:
+                    row[j], row[j-1] = row[j-1], row[j]         
+        median = len(row)/2
+        if type(median) == float:
+            median = (row[int(median-0.5)] + row[int(median+0.5)])/2
+        else:
+            median = row[median]
+        return median
+    median = cal_median(res)
     for mem_list in res:
         mem_list = mem_list.split('：')
         try:
-            if int(mem_list[8]) > 500:
+            if int(mem_list[8]) > median:   #中央値で区切る
                 party = str(mem_list[0])
                 name = str(mem_list[1])
                 value = float(mem_list[2])
@@ -196,23 +230,36 @@ def res_load(res_file):
             pass
     return score
 
-def corrects(res):
+def swap_rate(dicts):
+    def swap_count(row):# 必要スワップ回数
+        count = 0
+        for j in range(len(row)):
+            for i in range(1, len(row)-j):
+                if row[i-1] > row[i]:
+                    row[i-1], row[i] = row[i], row[i-1]
+                    count += 1
+        return count
+    def max_count(row):    # 最悪スワップ回数
+        from collections import Counter
+        c = Counter(row)
+        assert len(c.values()) == 2 # ２種類のみ通すよ
+        l_len = len(row)
+        max_cnt = 1
+        for v in c.values():
+            max_cnt *= l_len - v
+        return max_cnt
     row = []
-    swap = 0
-    for key in list(res.keys()):
+    for key,value in dicts.items():
         if key[0] == '民間' or key[0] == '無属':
             pass
         elif key[0] == '自民' or key[0] == '公明' or key[0] == '維新':
             row.append(1)
         else:
             row.append(0)
-    for i in range(len(row)):   #バブルソート
-        for j in range(len(row)-1, i, -1):
-            if row[j] < row[j-1]:
-                row[j], row[j-1] = row[j-1], row[j]
-                swap += 1
-    validity = len(res) / (len(res) + swap) #スワップした回数を分母に足して確率を求める
-    return round(validity*100,2)
+    swap_cnt = swap_count(row)
+    max_cnt = max_count(row)
+    ans_rate =( 1 - (swap_cnt/max_cnt) )*100    #百分率
+    return round(ans_rate,2)
 
 if __name__ == '__main__':
     input_f = sys.argv[1]
@@ -220,8 +267,8 @@ if __name__ == '__main__':
         out_f = sys.argv[2]
     except IndexError:
         files = res_load(input_f)
-        cor = corrects(files)
-        print("正答率：",cor)
+        correct = swap_rate(files)
+        print("正答率：{}%".format(correct))
         plot(files)
         sys.exit()
     if os.path.exists(out_f):   #上書きの警告
@@ -242,23 +289,24 @@ if __name__ == '__main__':
         else:
             score = [score, hits ,(hits/all_word)*100,all_word]
             res_dict.update({name:score})
-        #if not c%10:
-        print(c,"件終了")
+        if not c%10:
+            print(c,"件終了")
         c += 1
     reslut = {}
     lines = ''
+    median = cal_median(res_dict)   #スコアの中央値
     for key, value in sorted(res_dict.items(), key=lambda x: x[1]): #スコアを昇順+所属政党追加
         party = search_party(key)
         if party == 0:
             party = '民間'
         key = (party,key)
-        if value[3] > 500:  #総単語数が200以下はplotしない
+        if value[3] > median:  #総単語数が中央値以下はplotしない
             reslut.update({key:value[0]})
         lines += "{}：{}：{}：ヒット数：{}：ヒット率：{}：単語総数：{}"\
             .format(key[0],key[1],round(value[0],4),value[1],round(value[2],2),value[3])
         lines += '\n'
-    cor = corrects(reslut)
-    lines += "正答率：{}%".format(cor)
+    correct = swap_rate(res_dict)
+    lines += "正答率：{}%".format(correct)
     with open(out_f,'w')as f:
         f.write(lines)
     plot(reslut)   #plot
