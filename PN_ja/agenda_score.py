@@ -1,6 +1,7 @@
 import MeCab, re, codecs, sys, os, json, urllib.request, mojimoji,jaconv
 import matplotlib.pyplot as plt
 from bs4 import BeautifulSoup
+from collections import Counter
 
 def re_def(filepass):
     nameData = ""
@@ -146,12 +147,17 @@ def counting(all_words):
                         matchs += 1
                         break
         except IndexError:
-            if not word == 'EOS' or not word == '':  #空でもEOSでもない場合print
+            if not word == ['EOS','']:  #空EOSでない場合print
                 print(word)
     return score/len(wakati), matchs,len(wakati) 
 
-def plot(res):
+def plot(dicts):
     name = []
+    res = {}
+    median = cal_median(dicts)
+    for k,v in dicts.items():
+        if v[3] > median:   #中央値以下はplotしない
+            res.update({k:v})
     plt.figure(figsize=(15, 5)) #これでラベルがかぶらないくらい大きく
     plt.title('水道法改正についての発言')
     leng = range(len(res))
@@ -194,38 +200,18 @@ def cal_median(res):
     else:
         median = row[median]
     return median
-
 def res_load(res_file):
     score = dict()
     with open(res_file,'r')as f:
         res = f.read().split('\n')
-    def cal_median(res):
-        row = []
-        for mem_list in res:
-            mem_list = mem_list.split('：')
-            try:
-                row.append(int(mem_list[8]))
-            except IndexError:
-                pass    
-        for i in range(len(row)):
-            for j in range(len(row)-1, i, -1):
-                if row[j] < row[j-1]:
-                    row[j], row[j-1] = row[j-1], row[j]         
-        median = len(row)/2
-        if type(median) == float:
-            median = (row[int(median-0.5)] + row[int(median+0.5)])/2
-        else:
-            median = row[median]
-        return median
-    median = cal_median(res)
     for mem_list in res:
         mem_list = mem_list.split('：')
         try:
-            if int(mem_list[8]) > median:   #中央値で区切る
-                party = str(mem_list[0])
-                name = str(mem_list[1])
-                value = float(mem_list[2])
-                score.update({(party,name):value})
+            party = str(mem_list[0])
+            name = str(mem_list[1])
+            value = [float(mem_list[2]),float(mem_list[4]),\
+                float(mem_list[6]),float(mem_list[8])]
+            score.update({(party,name):value})
         except IndexError:
             pass
     return score
@@ -250,12 +236,13 @@ def swap_rate(dicts):
         return max_cnt
     row = []
     for key,value in dicts.items():
-        if key[0] == '民間' or key[0] == '無属':
-            pass
-        elif key[0] == '自民' or key[0] == '公明' or key[0] == '維新':
-            row.append(1)
-        else:
-            row.append(0)
+        if int(value[3]) > 200:
+            if key[0] == '民間' or key[0] == '無属':
+                pass
+            elif key[0] == '自民' or key[0] == '公明' or key[0] == '維新':
+                row.append(1)
+            else:
+                row.append(0)
     swap_cnt = swap_count(row)
     max_cnt = max_count(row)
     ans_rate =( 1 - (swap_cnt/max_cnt) )*100    #百分率
@@ -294,14 +281,12 @@ if __name__ == '__main__':
         c += 1
     reslut = {}
     lines = ''
-    median = cal_median(res_dict)   #スコアの中央値
     for key, value in sorted(res_dict.items(), key=lambda x: x[1]): #スコアを昇順+所属政党追加
         party = search_party(key)
         if party == 0:
             party = '民間'
         key = (party,key)
-        if value[3] > median:  #総単語数が中央値以下はplotしない
-            reslut.update({key:value[0]})
+        reslut.update({key:value[0]})
         lines += "{}：{}：{}：ヒット数：{}：ヒット率：{}：単語総数：{}"\
             .format(key[0],key[1],round(value[0],4),value[1],round(value[2],2),value[3])
         lines += '\n'
