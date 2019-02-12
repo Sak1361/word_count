@@ -40,7 +40,7 @@ def re_def(filepass):
             l += line
         yield nameData,l
 
-def match_score():
+def match_score():  #極性表取得部
     if os.path.exists("pn_score.txt"):
         pn_score = ""
         with open("pn_score.txt",'r') as f:
@@ -59,7 +59,7 @@ def match_score():
         f.write(pn_score)
     return pn_score
 
-def search_party(search_name):
+def search_party(search_name):  #発言者の所属政党を検索
     tagger = MeCab.Tagger('-Oyomi -d /usr/local/lib/mecab/dic/mecab-ipadic-neologd')#読み仮名のみ
     tagger.parse('')
     re_sub = re.compile(r'[︰-＠]')  #全角記号
@@ -82,7 +82,7 @@ def search_party(search_name):
                 party = res.find(class_="Party").text
                 return party
 
-def counting(all_words):
+def counting(all_words):    #極性表と議事録の照合
     tagger = MeCab.Tagger('-Ochasen -d /usr/local/lib/mecab/dic/mecab-ipadic-neologd')
     tagger.parse('')
     meetings = ""
@@ -151,42 +151,7 @@ def counting(all_words):
                 print(word)
     return score/len(wakati), matchs,len(wakati) 
 
-def plot(dicts):
-    name = []
-    res = {}
-    median = cal_median(dicts)
-    for k,v in dicts.items():
-        if v[3] > median:   #中央値以下はplotしない
-            res.update({k:v})
-    plt.figure(figsize=(15, 5)) #これでラベルがかぶらないくらい大きく
-    plt.title('水道法改正についての発言')
-    leng = range(len(res))
-    for ln,key,value in zip(leng,list(res.keys()),res.values()):
-        name.append(key[1])
-        if key[0] == '自民' or key[0] == '公明' or key[0] == '維新':
-            plt.bar(ln,value, align='center',color='red',label="与党+維新")
-        elif key[0] == '民間':
-            plt.bar(ln,value, align='center',color='gray',label="参考人等")
-        elif key[0] == '無属':
-            plt.bar(ln,value, align='center',color='green',label="無所属")
-        else:
-            plt.bar(ln,value, align='center',color='blue',label="野党")
-    plt.xticks(leng, name ,rotation=90)
-    plt.tick_params(width=2, length=10) #ラベル大きさ 
-    plt.ylim([0,-0.15])
-    plt.tight_layout()  #整える
-    handles, labels = plt.gca().get_legend_handles_labels() #汎用表示
-    i =1
-    while i<len(labels):
-        if labels[i] in labels[:i]:
-            del(labels[i])
-            del(handles[i])
-        else:
-            i +=1
-    plt.legend(handles, labels)
-    plt.show()
-
-def cal_median(res):
+def cal_median(res):    #中央値を算出
     row = []
     for value in list(res.values()):
         row.append(value[3])    #valueには（スコア、ヒット数、ヒット率、単語総数）
@@ -200,23 +165,26 @@ def cal_median(res):
     else:
         median = row[median]
     return median
-def res_load(res_file):
+
+def res_load(res_file): #結果ファイルを読み取る場合
     score = dict()
+    ano = ["無属","民間"]
     with open(res_file,'r')as f:
         res = f.read().split('\n')
     for mem_list in res:
         mem_list = mem_list.split('：')
         try:
             party = str(mem_list[0])
-            name = str(mem_list[1])
-            value = [float(mem_list[2]),float(mem_list[4]),\
-                float(mem_list[6]),float(mem_list[8])]
-            score.update({(party,name):value})
+            if True:#not party in ano:    #無所属とか除く
+                name = str(mem_list[1])
+                value = [float(mem_list[2]),float(mem_list[4]),\
+                    float(mem_list[6]),float(mem_list[8])]
+                score.update({(party,name):value})
         except IndexError:
             pass
     return score
 
-def swap_rate(dicts):
+def swap_rate(dicts):   #バブルソートのスワップ数で正答率を算出
     def swap_count(row):# 必要スワップ回数
         count = 0
         for j in range(len(row)):
@@ -235,28 +203,67 @@ def swap_rate(dicts):
             max_cnt *= l_len - v
         return max_cnt
     row = []
+    another = 0
     for key,value in dicts.items():
-        if int(value[3]) > 200:
-            if key[0] == '民間' or key[0] == '無属':
-                pass
-            elif key[0] == '自民' or key[0] == '公明' or key[0] == '維新':
-                row.append(1)
-            else:
-                row.append(0)
+        #if int(value[3]) > 10:#全ての結果から正答率を算出
+        if key[0] == '民間' or key[0] == '無属':
+            another += 1
+        elif key[0] == '自民' or key[0] == '公明' or key[0] == '維新':
+            row.append(1)
+        else:
+            row.append(0)
     swap_cnt = swap_count(row)
     max_cnt = max_count(row)
     ans_rate =( 1 - (swap_cnt/max_cnt) )*100    #百分率
-    return round(ans_rate,2)
+    return round(ans_rate,2),another
+
+def plot(dicts,another):
+    name = []
+    res = {}
+    median = cal_median(dicts)
+    #median = 1 
+    for k,v in dicts.items():
+        if v[3] > median:   #中央値以下はplotしない
+            res.update({k:v})
+    plt.figure(figsize=(15, 5)) #これでラベルがかぶらないくらい大きく
+    plt.title('水道法改正についての発言スコア')
+    leng = range(len(res))
+    for ln,key,value in zip(leng,list(res.keys()),res.values()):
+        name.append(key[1])
+        if key[0] == '自民' or key[0] == '公明' or key[0] == '維新':
+            plt.bar(ln,value, align='center',color='red',label="与党+維新")
+        elif key[0] == '民間':
+            plt.bar(ln,value, align='center',color='gray',label="参考人等")
+        elif key[0] == '無属':
+            plt.bar(ln,value, align='center',color='green',label="無所属")
+        else:
+            plt.bar(ln,value, align='center',color='blue',label="野党")
+    plt.xticks(leng, name ,rotation=90)
+    plt.tick_params(width=2, length=10) #ラベル大きさ 
+    plt.ylim([0,-0.15])
+    #plt.xlabel("発言者名")
+    plt.ylabel("スコア")
+    plt.tight_layout()  #整える
+    handles, labels = plt.gca().get_legend_handles_labels() #汎用表示
+    i =1
+    while i<len(labels):
+        if labels[i] in labels[:i]:
+            del(labels[i])
+            del(handles[i])
+        else:
+            i +=1
+    plt.legend(handles, labels)
+    plt.show()
 
 if __name__ == '__main__':
     input_f = sys.argv[1]
     try:
         out_f = sys.argv[2]
-    except IndexError:
+    except IndexError:  #結果ファイルだけならload
         files = res_load(input_f)
-        correct = swap_rate(files)
+        correct,anothers = swap_rate(files)
         print("正答率：{}%".format(correct))
-        plot(files)
+        plot(files,anothers)
         sys.exit()
     if os.path.exists(out_f):   #上書きの警告
         select = input("orverwrite?yes(0),no(1):")
@@ -264,7 +271,7 @@ if __name__ == '__main__':
             sys.exit()
     res_dict = {}
     c = 1
-    for name,words in re_def(input_f):
+    for name,words in re_def(input_f):  #発言単位でカウントし収集
         score, hits, all_word = counting(words)
         if name in res_dict.keys():
             val = (res_dict[name][0] + score) / 2
@@ -285,13 +292,13 @@ if __name__ == '__main__':
         party = search_party(key)
         if party == 0:
             party = '民間'
-        key = (party,key)
+        key = (party,key)   #タプル化
         reslut.update({key:value[0]})
         lines += "{}：{}：{}：ヒット数：{}：ヒット率：{}：単語総数：{}"\
             .format(key[0],key[1],round(value[0],4),value[1],round(value[2],2),value[3])
         lines += '\n'
-    correct = swap_rate(res_dict)
+    correct,anothers = swap_rate(res_dict)
     lines += "正答率：{}%".format(correct)
     with open(out_f,'w')as f:
         f.write(lines)
-    plot(reslut)   #plot
+    plot(reslut,anothers)   #plot
