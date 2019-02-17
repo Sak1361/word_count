@@ -147,9 +147,8 @@ def counting(all_words):    #極性表と議事録の照合
                         matchs += 1
                         break
         except IndexError:
-            if not word == ['EOS','']:  #空EOSでない場合print
-                print(word)
-    return score/len(wakati), matchs,len(wakati) 
+            print(word)
+    return score/matchs, matchs,len(wakati) 
 
 def cal_median(res):    #中央値を算出
     row = []
@@ -175,7 +174,7 @@ def res_load(res_file): #結果ファイルを読み取る場合
         mem_list = mem_list.split('：')
         try:
             party = str(mem_list[0])
-            if True:#not party in ano:    #無所属とか除く
+            if not party in ano:    #無所属とか除く
                 name = str(mem_list[1])
                 value = [float(mem_list[2]),float(mem_list[4]),\
                     float(mem_list[6]),float(mem_list[8])]
@@ -193,7 +192,7 @@ def swap_rate(dicts):   #バブルソートのスワップ数で正答率を算�
                     row[i-1], row[i] = row[i], row[i-1]
                     count += 1
         return count
-    def max_count(row):    # 最悪スワップ回数
+    def max_count(row):    # 最高スワップ回数
         from collections import Counter
         c = Counter(row)
         assert len(c.values()) == 2 # ２種類のみ通すよ
@@ -221,12 +220,13 @@ def plot(dicts,another):
     name = []
     res = {}
     median = cal_median(dicts)
-    #median = 1 
+    print(median)
+    median = 1 
     for k,v in dicts.items():
         if v[3] > median:   #中央値以下はplotしない
             res.update({k:v})
     plt.figure(figsize=(15, 5)) #これでラベルがかぶらないくらい大きく
-    plt.title('水道法改正についての発言スコア')
+    plt.title('入管法改正についての発言スコア')
     leng = range(len(res))
     for ln,key,value in zip(leng,list(res.keys()),res.values()):
         name.append(key[1])
@@ -297,8 +297,8 @@ if __name__ == '__main__':
         lines += "{}：{}：{}：ヒット数：{}：ヒット率：{}：単語総数：{}"\
             .format(key[0],key[1],round(value[0],4),value[1],round(value[2],2),value[3])
         lines += '\n'
-    correct,anothers = swap_rate(res_dict)
-    lines += "正答率：{}%".format(correct)
+    #correct,anothers = swap_rate(res_dict)
+    #lines += "正答率：{}%".format(correct)
     with open(out_f,'w')as f:
         f.write(lines)
     plot(reslut,anothers)   #plot
