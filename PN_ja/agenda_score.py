@@ -221,7 +221,7 @@ def plot(dicts,another):
     res = {}
     median = cal_median(dicts)
     print(median)
-    median = 1 
+    #median = 1 
     for k,v in dicts.items():
         if v[3] > median:   #中央値以下はplotしない
             res.update({k:v})
