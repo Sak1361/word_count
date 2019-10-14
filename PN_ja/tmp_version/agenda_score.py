@@ -226,7 +226,7 @@ def plot(dicts,another):
         if v[3] > median:   #中央値以下はplotしない
             res.update({k:v})
     plt.figure(figsize=(15, 5)) #これでラベルがかぶらないくらい大きく
-    plt.title('入管法改正についての発言スコア')
+    plt.title('スコア')
     leng = range(len(res))
     for ln,key,value in zip(leng,list(res.keys()),res.values()):
         name.append(key[1])

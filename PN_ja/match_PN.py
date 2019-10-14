@@ -1,6 +1,6 @@
 import MeCab, re, codecs, sys, os, json, urllib.request, mojimoji
 import matplotlib.pyplot as plt
-import search_party #作ったプログラムをモジュールで使う
+import search_party as search #作ったプログラムをモジュールで使う
 from bs4 import BeautifulSoup
 
 def re_def(filepass):
@@ -203,7 +203,7 @@ def res_load(res_file):
         else:
             score.update({str(mem_list[0]):float(mem_list[1])})
     for key in score.keys():
-        party = search_party.search(key)
+        party = search.search_party(key)
         if party == '自民' or party == '公明' or party == '維新':
             ruling.append(key)  #appendじゃないと一文字づつ
         elif party == '無属':
